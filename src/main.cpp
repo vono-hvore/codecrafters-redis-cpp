@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <cstddef>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -53,12 +54,14 @@ int main(int argc, char **argv) {
   // when running tests.
   std::cout << "Logs from your program will appear here!\n";
 
-  // Uncomment the code below to pass the first stage
-
-  accept(server_fd, (struct sockaddr *)&client_addr,
-         (socklen_t *)&client_addr_len);
+  const int client_fd = accept(server_fd, (struct sockaddr *)&client_addr,
+                               (socklen_t *)&client_addr_len);
   std::cout << "Client connected\n";
+  std::string msg = "+PONG\r\n";
+  const size_t msg_size = send(client_fd, msg.data(), msg.size(), 0);
+  std::cout << msg_size;
 
+  close(client_fd);
   close(server_fd);
 
   return 0;
