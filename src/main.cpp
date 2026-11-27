@@ -1,3 +1,4 @@
+#include "EventLoop.hpp"
 #include <arpa/inet.h>
 #include <cstddef>
 #include <cstdlib>
@@ -10,6 +11,53 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+void die(const char *msg);
+void log_msg(std::string_view msg);
+int make_socket_fd();
+void set_sockopt(int socket_fd);
+sockaddr_in make_socketaddr();
+void bind_socket(int socket_fd, sockaddr_in server_addr);
+void listen_socket(int server_fd);
+int accept_client(int socket_fd);
+std::optional<std::string> recv_msg(int socket_fd);
+bool send_msg(int socket_fd, const std::string &msg);
+const char *PONG = "+PONG\r\n";
+
+void handle_client(int client_fd) {
+  log_msg("Client connected");
+  while (auto msg = recv_msg(client_fd)) {
+    log_msg(*msg);
+    if (!send_msg(client_fd, PONG))
+      break;
+  }
+}
+
+int main() {
+  std::cout << std::unitbuf;
+  std::cerr << std::unitbuf;
+
+  EventLoop event_loop;
+  int server_fd = make_socket_fd();
+  set_sockopt(server_fd);
+  bind_socket(server_fd, make_socketaddr());
+  listen_socket(server_fd);
+
+  log_msg("Waiting for a client to connect...");
+  log_msg("Logs from your program will appear here!");
+
+  while (auto client_fd = accept_client(server_fd)) {
+    ActionHandler *handler = new ActionHandler([&client_fd] {
+      handle_client(client_fd);
+      return Event::Finish;
+    });
+    event_loop.post(client_fd, handler);
+    close(client_fd);
+  }
+
+  close(server_fd);
+  return 0;
+}
 
 void die(const char *msg) {
   std::cerr << msg << '\n';
@@ -88,32 +136,4 @@ bool send_msg(int socket_fd, const std::string &msg) {
   if (!result)
     std::cerr << "failed to send to client message\n";
   return result;
-}
-
-const char *PONG = "+PONG\r\n";
-
-int main() {
-  std::cout << std::unitbuf;
-  std::cerr << std::unitbuf;
-
-  int server_fd = make_socket_fd();
-  set_sockopt(server_fd);
-  bind_socket(server_fd, make_socketaddr());
-  listen_socket(server_fd);
-
-  log_msg("Waiting for a client to connect...");
-  log_msg("Logs from your program will appear here!");
-
-  while (auto client_fd = accept_client(server_fd)) {
-    log_msg("Client connected");
-    while (auto msg = recv_msg(client_fd)) {
-      log_msg(*msg);
-      if (!send_msg(client_fd, PONG))
-        break;
-    }
-    close(client_fd);
-  }
-
-  close(server_fd);
-  return 0;
 }

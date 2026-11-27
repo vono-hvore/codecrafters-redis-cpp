@@ -2,5 +2,13 @@
   "dependencies": [
     "asio",
     "pthreads"
-  ]
+  ],
+  "features": {
+    "tests": {
+      "description": "Unit tests",
+      "dependencies": [
+        "gtest"
+      ]
+    }
+  }
 }
